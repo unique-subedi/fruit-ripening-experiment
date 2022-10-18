@@ -15,8 +15,22 @@
 
 Write down our pre-analysis plan here:
 1. What fruit/treatment(s) do we want to use?
-2. How do we assess the ripeness? Do we want it to be ordinal/continuous data?
-3. What statistical tools do we use for our analysis? test statistic? 
+    - (control) open-air 
+    - (treatment 1) paper bag (keep Ethylene inside of bag)
+    - (treatment 2) apple (more Ethylene)
+    - (treatment 3) paper bag + apple
+2. Controlling confounders
+    - bunched together (to remove the confounding factor and reduce cost of apples)
+    - use the bananas from the same bunch (?)
+    - not using bruised bananas
+3. How do we assess the ripeness? Do we want it to be ordinal/continuous data?
+    - DNN bana ripening
+    - A scale of ripeness  [example](https://www.freshpoint.com/wp-content/uploads/2019/04/freshpoint-produce-101-banana-ripening-chart-v3.jpg)
+    - number of days it takes to get fully browned
+    - peel color (pixel color)
+    - Softness 
+4. What statistical tools do we use for our analysis? test statistic? 
+    - factorial design
 
 
 <hr>
