@@ -45,7 +45,7 @@ Oct 19: Beginning of the experiment.
 
 
 ## Treatment code
-0: Control (Unique's desk)
-1: Apple (Jake's desk)
-2: Cucumber (Seamus's desk)
-3: Apple and cucumber (left to Unique's)
+- 0: Control (Unique's desk)
+- 1: Apple (Jake's desk)
+- 2: Cucumber (Seamus's desk)
+- 3: Apple and cucumber (left to Unique's)
