@@ -41,3 +41,11 @@ We can use the markdown file as the experimental notebook. Let us index each log
 
 
 Oct 13: Created the group and set up the workflow. Brainstromed techniques for assessing ripening. 
+Oct 19: Beginning of the experiment. 
+
+
+## Treatment code
+0: Control (Unique's desk)
+1: Apple (Jake's desk)
+2: Cucumber (Seamus's desk)
+3: Apple and cucumber (left to Unique's)
