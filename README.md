@@ -40,4 +40,14 @@ Write down our pre-analysis plan here:
 We can use the markdown file as the experimental notebook. Let us index each log by the date and if there are multiple logs for each day, lets index by date-time pair. 
 
 
-Oct 13: Created the group and set up the workflow. Brainstromed techniques for assessing ripening. 
+1. Oct 13: Created the group and set up the workflow. Brainstromed techniques for assessing ripening. 
+
+2. Oct 19: Beginning of the experiment. 
+
+<hr>
+
+## Treatment code
+- 0: Control (Unique's desk)
+- 1: Apple (Jake's desk)
+- 2: Cucumber (Seamus's desk)
+- 3: Apple and cucumber (left to Unique's)
