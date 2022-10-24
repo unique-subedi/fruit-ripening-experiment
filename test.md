@@ -1,11 +1,21 @@
 ## Tests we can conduct
 
+### Four tests:
+
+1. Compare pixel intensity mean difference for **first day and last day** consider pairwise treatment, and also treatment vs. control (difference in means between groups on (difference of magnitude))
+2. Compare pixel intensity mean difference for **consecutive days**, consider pairwise treatment, and also treatment vs. control (difference in means between groups on (difference of magnitude))
+3. Using longitudinal test as in 4.
+4. Compare softness difference pairwise treatment, and also treatment vs. control (max of difference of mean)
+
+
+
 1. Test wether there is a within-subject difference in *time* for each treatment.
     - paired sample, before/after treatment is applied 
     - test separately for each treatment (randomise within each pair on before/after)
     - in this case, we have 3 paired samples for each treatment
     - how to meaningfully compare p-values across treatments if we are only randomising time? In this case treatment is being controlled for?
     - use mxied effect model, or s.e. adjusted for within treatment grouped effect for t-test statistics.
+    
 2. Test wether there is a between-subject difference in *pairwise treatment assignment* across time
     - grouped sample for each time point
         - control: banana by itself, treatment: banana with apple;
