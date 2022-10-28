@@ -2,11 +2,10 @@
 
 ### Four tests:
 
-1. Compare pixel intensity mean difference for **first day and last day** consider pairwise treatment, and also treatment vs. control (difference in means between groups on (difference of magnitude))
-2. Compare pixel intensity mean difference for **consecutive days**, consider pairwise treatment, and also treatment vs. control (difference in means between groups on (difference of magnitude))
-3. Using longitudinal test as in 4.
-4. Compare softness difference pairwise treatment, and also treatment vs. control (max of difference of mean)
-
+1. (Unique) Compare pixel intensity mean difference for **first day and last day** consider pairwise treatment, and also treatment vs. control (difference in means between groups on (difference of magnitude))
+2. (Shihao) Compare pixel intensity mean difference for **consecutive days**, consider pairwise treatment, and also treatment vs. control (difference in means between groups on (difference of magnitude))
+3. (Yidan) Using longitudinal test as in 4.
+4. (Seamus) Compare softness difference pairwise treatment, and also treatment vs. control (max of difference of mean)
 
 
 1. Test wether there is a within-subject difference in *time* for each treatment.
