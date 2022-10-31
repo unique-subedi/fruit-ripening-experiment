@@ -11,6 +11,7 @@ import seaborn as sns
 
 
 def _median(val, perm_trt, idx_trt):
+
 	out = jnp.zeros_like(idx_trt, dtype=jnp.float32)
 	for i in range(len(idx_trt)):
 		idx = jnp.argwhere(perm_trt == i, size=3)
@@ -33,9 +34,7 @@ def var_median(val, perm_trt, idx_trt):
 		den += jnp.sum(sqrt)
 
 	F = num / den * (len(val) - len(idx_trt))
-
 	return F
-
 
 def _perm(key, trt, idx_trt, val, stats):
 	"""
@@ -59,7 +58,6 @@ def _perm(key, trt, idx_trt, val, stats):
 	return perm_stats
 
 
-
 def perm(key, m, trt, idx_trt, val, stats):
 	""" randomly permute treatment assignments and compute test statistics 
 	
@@ -75,6 +73,18 @@ def perm(key, m, trt, idx_trt, val, stats):
 
 
 if __name__ == "__main__":
+
+	""" We use normalised (divide by magnitude) green RGB value for each of the data point, then we take 1 lag difference
+	to remove linear trend in time.
+	Then we test for if there is a difference in any treatment comparing to each other with a modified F-statistics 
+	based on between group / withiin group variance of median.
+	We use a permutation test, where we treat each day as a block, and permute within each of the block, after which we 
+	compute the test statistics using all the data.
+	Alternatively, we can compute an average over the 5 days for each of the treatment, however, as seen in HW3, we may
+	fail to control type 1 error.
+	After finding the test statistics distrbution under the null hypothesis, we can find the p-value P(F >= obs).
+	"""
+
 	banana = pd.read_csv("banana.csv")
 	data = pd.read_csv("data.csv")
 
@@ -94,13 +104,13 @@ if __name__ == "__main__":
 	g_df = pd.concat([data.iloc[:,:2], gnorm_diff_banana.iloc[:,1:]], axis =1)
 	soft_df = pd.concat([data.iloc[:,:2], soft_diff.iloc[:,1:]], axis =1)
 	g_df_melted = pd.melt(g_df, id_vars=["number", "treatment"], var_name="covariates", value_name="value")
+
 	# # save the entirety of df
 	# df = pd.concat([data.iloc[:,:2], soft_diff.iloc[:,1:], gnorm_diff_banana.iloc[:,1:]], axis=1)
 	# df_melted = pd.melt(df, id_vars=["number", "treatment"], var_name="covariates", value_name="value")
 	# # print(df_melted)
 	# df_melted.to_csv("df_melted.csv")
 
-	# print(soft_df)
 	############################### Stats based on Median ###############################
 	g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=72
 	obs_trt = g_df["treatment"].values # vector 12
@@ -111,13 +121,11 @@ if __name__ == "__main__":
 	key = jrm.PRNGKey(130)
 	stats = "var_median"
 	perm_stats = perm(key, m, obs_trt, idx_trt, g_val, stats)
-	# print(_median(1, g_val, g_df_melted["treatment"].values))
 
 	# obs_median = _median(g_val, g_df_melted["treatment"].values, idx_trt)
 	obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt)
 	pval = jnp.mean(perm_stats >= obs_stats)
 
-	# print(_median(g_val, g_df_melted["treatment"].values, idx_trt))
 	plt.figure(figsize=(12, 7))
 	sns.histplot(np.asarray(perm_stats), kde=True)
 	plt.axvline(obs_stats, color="r", label="observed")
