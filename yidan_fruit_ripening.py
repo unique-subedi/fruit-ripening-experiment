@@ -10,33 +10,33 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def _median(val, perm_trt, idx_trt):
+def _median(val, perm_trt, idx_trt, nsize):
 
 	out = jnp.zeros_like(idx_trt, dtype=jnp.float32)
 	for i in range(len(idx_trt)):
-		idx = jnp.argwhere(perm_trt == i, size=3)
+		idx = jnp.argwhere(perm_trt == i, size=nsize) # 3 bananas for 5 days
 		out = out.at[i].set(jnp.median(val.at[idx].get()))
 	return out
 
 # if variance is mostly explained by between treatment variance
 # then F statistics is large, which corresponds to p-val=P(F>=obs)
-def var_median(val, perm_trt, idx_trt):
+def var_median(val, perm_trt, idx_trt, nsize):
 
 	global_med = jnp.median(val)
-	local_med = _median(val, perm_trt, idx_trt)
+	local_med = _median(val, perm_trt, idx_trt, nsize)
 
-	num = jnp.sum((local_med - global_med)**2) * 3 / (len(idx_trt)-1)
+	num = jnp.sum((local_med - global_med)**2) * nsize / (len(idx_trt)-1)
 	den = 0.
 
 	for i in range(len(idx_trt)):
-		idx = jnp.argwhere(perm_trt == i, size=3)
+		idx = jnp.argwhere(perm_trt == i, size=nsize)
 		sqrt = (val.at[idx].get() - local_med.at[i].get())**2
 		den += jnp.sum(sqrt)
 
 	F = num / den * (len(val) - len(idx_trt))
 	return F
 
-def _perm(key, trt, idx_trt, val, stats):
+def _perm(key, trt, idx_trt, val, stats, days=5):
 	"""
 	key (PRNGKey)
 	m (int): number of Monte carlo samples
@@ -45,20 +45,25 @@ def _perm(key, trt, idx_trt, val, stats):
 	stats (str): name of test statistics to use
 	"""
 	# idx_trt, n_trt = jnp.unique(trt, return_counts=True)
-	rep_trt = jnp.repeat(trt[:,jnp.newaxis], repeats=len(idx_trt), axis=1) # col is day
+	rep_trt = jnp.repeat(trt[:,jnp.newaxis], repeats=days, axis=1) # col is day (5 in total)
 	# regard each day as blocks, permute within block
-	perm_trt = jrm.permutation(key, rep_trt, axis=0, independent=True).ravel("F")
+	perm_trt = jrm.permutation(key, rep_trt, axis=0, independent=False).ravel("F")
 
 	# test for if there is any difference in treatments comparing to each other
 	if stats == "var_median":
-		perm_stats = var_median(val, perm_trt, idx_trt)
+		perm_stats = var_median(val, perm_trt, idx_trt, 3*days)
+	elif stats == "max_median":
+		perm_stats = jnp.max(jnp.abs(_median(val, perm_trt, idx_trt, 3*days)))
+	elif stats == "mean_median":
+		perm_stats = jnp.mean(jnp.abs(_median(val, perm_trt, idx_trt, 3*days)))
 	else:
 		raise NotImplementedError
 
 	return perm_stats
+	# return perm_trt, perm_stats
 
 
-def perm(key, m, trt, idx_trt, val, stats):
+def perm(key, m, trt, idx_trt, val, stats, days=5):
 	""" randomly permute treatment assignments and compute test statistics 
 	
 	key (PRNGKey)
@@ -66,7 +71,7 @@ def perm(key, m, trt, idx_trt, val, stats):
 	trt (jax array): treatment assignment for subjects (row) on each day (col)
 	"""
 	keys = jrm.split(key, m)
-	ite_perm = jit(vmap(partial(_perm, trt=trt, idx_trt=idx_trt, val=val, stats=stats), (0)))
+	ite_perm = jit(vmap(partial(_perm, trt=trt, idx_trt=idx_trt, val=val, stats=stats, days=days), (0)))
 	stats_perm = ite_perm(keys)
 
 	return stats_perm
@@ -111,27 +116,76 @@ if __name__ == "__main__":
 	# # print(df_melted)
 	# df_melted.to_csv("df_melted.csv")
 
-	############################### Stats based on Median ###############################
+	########################## Stats based on Median 5 days ############################
 	g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=72
 	obs_trt = g_df["treatment"].values # vector 12
 	idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
 	n_trt = len(idx_trt)
 
-	m = 200
+	m = 1000
 	key = jrm.PRNGKey(130)
-	stats = "var_median"
-	perm_stats = perm(key, m, obs_trt, idx_trt, g_val, stats)
+	stats = "mean_median"
+	perm_stats = perm(key, m, obs_trt, idx_trt, g_val, stats, days=5)
+	# print(g_df_melted["treatment"].values)
+	# print(_perm(key, obs_trt, idx_trt, g_val, stats))
+	if stats == "var_median":
+		obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*5)
+		title = "Variance of Between Treatment Medians/Within Treatment Medians"
+	elif stats == "max_median":
+		obs_stats = jnp.max(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*5)))
+		title = "Max of Absolute Medians"
+	elif stats == "mean_median":
+		obs_stats = jnp.mean(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*5)))
+		title = "Mean of Absolute Medians"
+	else:
+		raise NotImplementedError
 
-	# obs_median = _median(g_val, g_df_melted["treatment"].values, idx_trt)
-	obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt)
 	pval = jnp.mean(perm_stats >= obs_stats)
 
 	plt.figure(figsize=(12, 7))
 	sns.histplot(np.asarray(perm_stats), kde=True)
 	plt.axvline(obs_stats, color="r", label="observed")
 	plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
-	plt.title("Variance of Between Treatment Medians/Within Treatment Medians")
-	plt.savefig("./figs/Ftest_5.png")
+	plt.title(title)
+	plt.savefig("./figs/Ftest_5_{}.png".format(stats))
+
+	############################# mean across days #####################################
+
+	# g_val_mean = jnp.asarray(g_df.iloc[:,2:].values).mean(axis=1)
+	# obs_trt = g_df["treatment"].values
+	# idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
+	# n_trt = len(idx_trt)
+	# print(obs_trt)
+	# print(g_val_mean)
+
+	# m = 1000
+	# key = jrm.PRNGKey(130)
+	# stats = "max_median"
+	# perm_stats = perm(key, m, obs_trt, idx_trt, g_val_mean, stats, days=1)
+	# # print(g_df_melted["treatment"].values)
+	# # print(_perm(key, obs_trt, idx_trt, g_val, stats))
+
+	# if stats == "var_median":
+	# 	obs_stats = var_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*1)
+	# 	title = "Variance of Between Treatment Medians/Within Treatment Medians"
+	# elif stats == "max_median":
+	# 	obs_stats = jnp.max(jnp.abs(_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*1)))
+	# 	title = "Max of Absolute Medians"
+	# elif stats == "mean_median":
+	# 	obs_stats = jnp.mean(jnp.abs(_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*1)))
+	# 	title = "Mean of Absolute Medians"
+	# else:
+	# 	raise NotImplementedError
+	
+	# pval = jnp.mean(perm_stats >= obs_stats)
+
+	# plt.figure(figsize=(12, 7))
+	# sns.histplot(np.asarray(perm_stats), kde=True)
+	# plt.axvline(obs_stats, color="r", label="observed")
+	# plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
+	# plt.title(title)
+	# plt.savefig("./figs/Ftest_1_{}.png".format(stats))
+
 
 
 
