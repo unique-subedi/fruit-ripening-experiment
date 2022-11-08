@@ -1,0 +1,19 @@
+---
+title: "STATS604 Project 3 Report"
+author: "Shihao Wu"
+date: "2022-11-08"
+output: html_document
+---
+ <font size="5">
+ 
+## Permutation tests on consecutive days
+
+We are also interested in whether each of the treatments accelerates the ripening on each of the five days. We consider four combinations of permutation tests: (1) permutation test on RGB magnitude by difference-in-means; (2) permutation test on RGB magnitude by difference-in-medians; (3) permutation test on RGB green value by difference-in-means; (4) permutation test on RGB green value by difference-in-medians. The permutation is implemented on the treatments of 6 bananas, three of which is in the control group and the other three in a treatment group.  For each test, we have 3 p-values for 3 'treatment v.s. control' groups on each of the five days. The results are summarized in the following plots: 
+
+![test1](1.png)
+![test2](2.png)
+![test3](3.png)
+![test4](4.png)
+
+As shown in the figures, there is no significant ripening effect among the treatments on each day. 
+</font>
