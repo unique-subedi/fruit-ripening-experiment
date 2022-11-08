@@ -124,41 +124,43 @@ if __name__ == "__main__":
 
 	########################## Stats based on Median 5 days ############################
     
-	# g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=72
-	# obs_trt = g_df["treatment"].values # vector 12
-	# idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
-	# n_trt = len(idx_trt)
-	# print(g_df_melted)
-	# print("gval", g_val)
-	# m = 10000
-	# key = jrm.PRNGKey(130)
-	# stats = "var_median"
-	# days = 5
-	# perm_stats = perm(key, m, obs_trt, idx_trt, g_val, stats, days=days)
-	# # print(g_df_melted["treatment"].values)
-	# # print(_perm(key, obs_trt, idx_trt, g_val, stats))
-	# if stats == "var_median":
-	# 	obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)
-	# 	# title = "Variance of Between Treatment Medians/Within Treatment Medians"
-	# 	title = "Consecutive Change in RGB Magnitude"
-	# elif stats == "max_median":
-	# 	obs_stats = jnp.max(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
-	# 	title = "Max of Absolute Medians"
-	# elif stats == "mean_median":
-	# 	obs_stats = jnp.mean(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
-	# 	title = "Mean of Absolute Medians"
-	# else:
-	# 	raise NotImplementedError
+	g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=72
+	obs_trt = g_df["treatment"].values # vector 12
+	idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
+	n_trt = len(idx_trt)
+	print(g_df_melted)
+	print("gval", g_val)
+	m = 10000
+	key = jrm.PRNGKey(130)
+	stats = "var_median"
+	days = 5
+	perm_stats = perm(key, m, obs_trt, idx_trt, g_val, stats, days=days)
+	# print(g_df_melted["treatment"].values)
+	# print(_perm(key, obs_trt, idx_trt, g_val, stats))
+	if stats == "var_median":
+		obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)
+		# title = "Variance of Between Treatment Medians/Within Treatment Medians"
+		title = "Consecutive Change in RGB Magnitude"
+	elif stats == "max_median":
+		obs_stats = jnp.max(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
+		title = "Max of Absolute Medians"
+	elif stats == "mean_median":
+		obs_stats = jnp.mean(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
+		title = "Mean of Absolute Medians"
+	else:
+		raise NotImplementedError
 
-	# print("obs stats {}".format(stats), obs_stats)
+	print("obs stats {}".format(stats), obs_stats)
 
-	# pval = jnp.mean(perm_stats >= obs_stats)
+	pval = jnp.mean(perm_stats >= obs_stats)
 
-	# plt.figure(figsize=(12, 7))
-	# sns.histplot(np.asarray(perm_stats), kde=True)
-	# plt.axvline(obs_stats, color="r", label="observed")
-	# plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
-	# plt.title(title)
+	plt.figure(figsize=(12, 7))
+	sns.histplot(np.asarray(perm_stats), kde=True)
+	plt.axvline(obs_stats, color="r", label="observed")
+	plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
+	plt.title(title)
+	plt.show()
+	plt.close()
 	# plt.savefig("./figs/5_mag_{}.png".format(stats))
 
 	############################# mean across days #####################################
