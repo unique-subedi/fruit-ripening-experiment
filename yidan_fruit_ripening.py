@@ -123,6 +123,7 @@ if __name__ == "__main__":
 	g_df_melted.to_csv("g_df_melted.csv")
 
 	########################## Stats based on Median 5 days ############################
+    
 	# g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=72
 	# obs_trt = g_df["treatment"].values # vector 12
 	# idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
@@ -258,32 +259,6 @@ if __name__ == "__main__":
 
 		p_val.append(jnp.mean(obs_stats >= perm_stats))
 
-
-	# # cucumber vs cucumber + apple
-	# g_val_2 = g_val[(obs_trt==2) + (obs_trt==3)]
-	# obs_trt_2 = obs_trt[(obs_trt==2) + (obs_trt==3)]
-	# idx_trt_2 = jnp.array([2,3])
-
-	# perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
-	# med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
-	# obs_stats = med[1] - med[0]
-
-	# p_val.append(jnp.mean(obs_stats >= perm_stats))
-
-
-
-	print(obs_stats)
-	print(perm_stats)
-	print(p_val)
-	# output
-	# [DeviceArray(0.3924, dtype=float32), DeviceArray(0.5022, dtype=float32), DeviceArray(0.4021, dtype=float32), DeviceArray(0.65389997, dtype=float32), DeviceArray(0.3425, dtype=float32), DeviceArray(1., dtype=float32)]
-
-
-	
-	# perm_stats = perm(key, m, obs_trt, idx_trt, g_val_mean, stats, days=days)
-	# obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)
-	# print(g_df_melted["treatment"].values)
-	# print(_perm(key, obs_trt, idx_trt, g_val, stats))
 
 
 
