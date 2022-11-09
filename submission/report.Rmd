@@ -16,7 +16,7 @@ graphics: yes
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.align="center")
 library(reticulate)
-py_install("sicpy")
+py_install("scipy")
 py_install("seaborn")
 py_install("matplotlib")
 py_install("jax")
@@ -55,9 +55,13 @@ banana = pd.read_csv("banana.csv")
 # Introduction
 
 Our research question was to see whether the presence of different fruits would ripen bananas quicker. Specifically, we tested whether having an apple, a cucumber, or both near bananas would lead to more ripe bananas.
+
 To set up our experiment, we bought 2 apples, 2 cucumbers, and 2 bunches of bananas (12 bananas total). The bananas that were bought were all unripe and relatively the same in terms of peel color. This last part was confirmed by the average RGB pixel values taken from pictures of the bananas, the process of which we will describe later. We then randomly partitioned the bananas into 4 groups of 3 and each group was put into a desk drawer in WH 436. The first group had an apple added to the drawer, the second group had a cucumber, the third had an apple and a cucumber, and the last was the control. We ran this experiment for a total of 5 days.
+
 Now that we have the experiment set up, we will now discuss how we measured ripeness. We decided to focus on 2 factors to measure ripeness: peel color and firmness. Through our collective experiences with bananas, we knew that as they ripen, they get softer and their peel becomes darker and less green. Thus, the firmness was recorded by having a group member rate the hardness of the banana on a scale from 1 to 5. The group member was blind to which banana they were measuring and this was done on the first and last day of the experiment.
+
 For peel color, we decided to take pictures of the peel to analyze the average pixel values. Over the five days, we took pictures of each banana at around the same time of day in a place where there was not much natural light. We used flash to control lighting and held the camera a similar distance from the bananas while taking the pictures.
+
 To analyze these pictures, we used an edge detection algorithm to detect the edge of the banana from the background and then set the background to pure black. Each picture was also manually inspected to set any remaining background to pure black. Then, we iterated through each pixel in the picture and discarded any pure black value. After inspecting a subset of photos, we were able to see the number of pixels in the banana that were discarded was negligible if any at all. The non-discarded pixels were then averaged to get a single RGB value for each picture. This green value is the one we will use in later analyses. We also calculate the magnitude of the average RGB values by taking the 3D Euclidean distance of our RGB from (0,0,0). We do this since we can think of RGB values living in a 3D space and the closer we get to (0,0,0), the closer to black the RGB value is. The code for this is available on our [ \underline{\textcolor{blue}{ github repository}}](https://github.com/unique-subedi/fruit-ripening-experiment/blob/main/average_pixel.py).
 
 ```{r, echo=FALSE, out.width="30%", out.height="30%", fig.cap="Original (left) and Processed (right)", fig.pos="H", fig.show='hold',fig.align='center'}
