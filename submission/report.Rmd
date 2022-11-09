@@ -1,0 +1,924 @@
+---
+title: "Fruit Ripening Project"
+author: "Seamus Somerstep, Unique Subedi, Jacob Trauger, Shihao Wu, Yidan Xu"
+output: 
+  pdf_document:
+    fig_caption: yes
+    includes:
+      in_header: header.tex
+    keep_tex: yes
+fontsize: 12pt
+geometry: margin=1in
+graphics: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+#py_install("sicpy")
+#py_install("seaborn")
+#py_install("matplotlib")
+#py_install("jax")
+```
+
+
+
+```{python, include=FALSE}
+import os
+import datetime
+import time
+import math
+import numpy as np
+import scipy
+from numpy import linalg as LA
+import pandas as pd
+import urllib.request
+import seaborn as sns
+from matplotlib import pyplot as plt
+import itertools
+from scipy.stats import f_oneway
+import random
+```
+
+
+```{python, include=FALSE}
+urllib.request.urlretrieve("https://raw.githubusercontent.com/unique-subedi/fruit-ripening-experiment/main/data.csv", "data.csv")
+urllib.request.urlretrieve("https://raw.githubusercontent.com/unique-subedi/fruit-ripening-experiment/main/banana.csv", "banana.csv")
+urllib.request.urlretrieve("https://raw.githubusercontent.com/unique-subedi/fruit-ripening-experiment/main/df_melted.csv", "df_melted.csv")
+urllib.request.urlretrieve("https://raw.githubusercontent.com/unique-subedi/fruit-ripening-experiment/main/g_df_melted.csv", "g_df_melted.csv")
+urllib.request.urlretrieve("https://raw.githubusercontent.com/unique-subedi/fruit-ripening-experiment/main/mag_df_melted.csv", "mag_df_melted.csv")
+data = pd.read_csv("data.csv")
+banana = pd.read_csv("banana.csv")
+
+```
+
+# Introduction
+
+Our research question was to see whether the presence of different fruits would ripen bananas quicker. Specifically, we tested whether having an apple, a cucumber, or both near bananas would lead to more ripe bananas.
+To set up our experiment, we bought 2 apples, 2 cucumbers, and 2 bunches of bananas (12 bananas total). The bananas that were bought were all unripe and relatively the same in terms of peel color. This last part was confirmed by the average RGB pixel values taken from pictures of the bananas, the process of which we will describe later. We then randomly partitioned the bananas into 4 groups of 3 and each group was put into a desk drawer in WH 436. The first group had an apple added to the drawer, the second group had a cucumber, the third had an apple and a cucumber, and the last was the control. We ran this experiment for a total of 5 days.
+Now that we have the experiment set up, we will now discuss how we measured ripeness. We decided to focus on 2 factors to measure ripeness: peel color and firmness. Through our collective experiences with bananas, we knew that as they ripen, they get softer and their peel becomes darker and less green. Thus, the firmness was recorded by having a group member rate the hardness of the banana on a scale from 1 to 5. The group member was blind to which banana they were measuring and this was done on the first and last day of the experiment.
+For peel color, we decided to take pictures of the peel to analyze the average pixel values. Over the five days, we took pictures of each banana at around the same time of day in a place where there was not much natural light. We used flash to control lighting and held the camera a similar distance from the bananas while taking the pictures.
+To analyze these pictures, we used an edge detection algorithm to detect the edge of the banana from the background and then set the background to pure black. Each picture was also manually inspected to set any remaining background to pure black. Then, we iterated through each pixel in the picture and discarded any pure black value. After inspecting a subset of photos, we were able to see the number of pixels in the banana that were discarded was negligible if any at all. The non-discarded pixels were then averaged to get a single RGB value for each picture. This green value is the one we will use in later analyses. We also calculate the magnitude of the average RGB values by taking the 3D Euclidean distance of our RGB from (0,0,0). We do this since we can think of RGB values living in a 3D space and the closer we get to (0,0,0), the closer to black the RGB value is. The code for this is available on our [ \underline{\textcolor{blue}{ github repository}}](https://github.com/unique-subedi/fruit-ripening-experiment/blob/main/average_pixel.py).
+
+```{r, echo=FALSE, out.width="30%", out.height="30%", fig.cap="Original (left) and Processed (right)", fig.pos="H", fig.show='hold',fig.align='center'}
+knitr::include_graphics(c("original.jpg","processed.png" ))
+```
+
+
+
+
+
+## Analysis on Softness
+
+
+
+```{python, echo = FALSE}
+data = pd.read_csv('data.csv')
+data.insert(4, column = "difference", value = data.iloc[:,2] - data.iloc[:,3])
+control = data[data.iloc[:,1] == 0]
+group1 = data[data.iloc[:,1] == 1]
+group2 = data[data.iloc[:,1] == 2]
+group3 = data[data.iloc[:,1] == 3]
+```
+
+```{python, echo = FALSE}
+def permutation_test(df1, df2):
+    ls = [1 for i in range(df1.shape[0])]
+    for i in range(df2.shape[0]):
+        ls.append(0)
+    permutations = list(itertools.permutations(ls))
+    T = df2["difference"].mean() - df2["difference"].mean()
+    hist = []
+    combined_data = pd.concat([df1,df2])
+    for perm in permutations:
+        group0 = combined_data[np.asarray(perm)==0]
+        group1 = combined_data[np.asarray(perm) == 1]
+        hist.append(group1["difference"].mean() - group0["difference"].mean())
+    return hist, np.mean(hist >= T)
+    
+    
+
+```
+
+
+```{python, echo = FALSE}
+def F_test(df1,df2,df3,df4):
+    def BGV(df1,df2,df3,df4):
+        Ybar = pd.concat([df1,df2,df3,df4])["difference"].mean()
+        BGV = (df1["difference"].mean() - Ybar)**2 + (df2["difference"].mean() - Ybar)**2 +(df3["difference"].mean() - Ybar)**2+ (df4["difference"].mean() - Ybar)**2
+        return BGV
+    def WGV(df1,df2,df3,df4):
+        WGV = df1["difference"].var() + df2["difference"].var()+ df3["difference"].var()+df4["difference"].var()
+        return WGV / 4   
+    combined_data = pd.concat([df1,df2,df3,df4])
+    F = BGV(df1,df2,df3,df4)/WGV(df1,df2,df3,df4)
+    #print(F)
+    ls = [0,0,0,1,1,1,2,2,2,3,3,3]
+    permutations = random.choices(list(itertools.permutations(ls)), k = 1000)
+    #combined_data = pd.concat([df1,df2,df3,df4])
+    hist = []
+    for perm in permutations:
+        group0 = combined_data[np.asarray(perm)==0]
+        group1 = combined_data[np.asarray(perm) == 1]
+        group2 = combined_data[np.asarray(perm) == 2]
+        group3 = combined_data[np.asarray(perm)==3]
+        if WGV(group0,group1,group2,group3) != 0:
+            hist.append( BGV(group0,group1,group2,group3) / WGV(group0,group1,group2,group3))
+    return np.mean(hist >= F), hist
+        
+
+```
+
+```{python, echo = FALSE}
+#test = F_test(control, group1, group2, group3)
+
+```
+
+Recall, for each banana we measured the firmness on a scale from 5 (firm) to 1(soft) on the first and last days of the experiment.  The change in for each banana along with treatment assignment is presented below.
+
+| Banana  | Treatment  | Change in Firmness|
+|---------|-----------|--------------------|
+| 1       | 0         | 2                  |
+| 2       | 0         | 2                  |
+| 3       | 0         | 2                  |
+| 4       | 1         | 2                  |
+| 5       | 1         | 2                  |
+| 6       | 1         | 1                  |
+| 7       | 2         | 3                  |
+| 8       | 2         | 1                  |
+| 9       | 2         | 3                  |
+| 10      | 3         | 3                  |
+| 11      | 3         | 2                  |
+| 12      | 3         | 1                  |
+
+We will perform two separate analyses on this data.  In the first, we will compare each treatment group to the control group using a permutation test with null hypothesis $H_0 := \textit{ treatment assignment has no effect on change in firmness}$. With alternative hypothesis $H_A := \textit{ treatment assignment has a positive effect on change in firmness.}$ We will use the difference in means test statistic:
+$T = \mu_{Firmness} - \mu_{Treat}$.  Note one problem, every banana in the control group had an equal change in firmness.  Due to this and the low sample size these tests will have low power with a minimum p-value of $0.14$.  When running this analysis we get the following p-values for each treatment group:
+
+| Group   | Apple | Cucumber | Apple + Cucumber |
+|---------|-------|----------|------------------|
+| p-value | 0.5   | 0.5      | 0.7              |
+
+The second analysis we run we test to see if any of the treatments/control have any significant effect relative to one another.  The null hypothesis is again: $H_0:= \textit{Treatment assignment has no effect on change in firmness}$ while the alternative hypothesis is the following:
+$H_a := \textit{there are treatments} \textit{which have a significant difference in change in firmness relative to another}$.
+The test statistic we use is the F-statistic, which is given by
+$$F: = \frac{\textit{between group variability}}{\textit{within group variability}}$$
+
+ 
+
+
+# Permutation tests on relative change between first and the last day
+
+Let us define $M_{ij}$ to be the magnitude of pixel for $i^{th}$ banana on $j^{th}$ day of the experiment. Since we ran the experiment for 5 days, we have $j \in \{1, 2, 3,4, 5\}$. In this section, we study the variable 
+$$\Delta M_i :=  M_{i1} - M_{i5},$$
+that is the change in pixel magnitude between the first and the last day of the experiment for each banana. Similarly, let us denote $G_{ij}$ to be the average green channel value for $i^{th}$ banana on $j^{th}$ day of the experiment. Then, we can define
+$$\Delta G_i := G_{i1} - G_{i5}.$$
+```{python, echo=FALSE}
+df = pd.concat([data, banana.iloc[:,1:]], axis =1)
+df_fl = df.loc[:, ['number', 'treatment', '10-19_g', '10-19_magnitude', '10-24_g', '10-24_magnitude']]
+df_fl.loc[:, "green_diff"] =   df_fl["10-19_g"] - df_fl["10-24_g"]
+df_fl.loc[:, "magnitude_diff"] =  df_fl["10-19_magnitude"] - df_fl["10-24_magnitude"]
+```
+
+First, we begin by studying if there exist any pair of groups, either treatment-control pair or treatment-treatment pair, for which $\Delta M_i$ or $\Delta G_i$ is statistically different across these two groups in the pair. For this, we use a permutation test using F-statistic as the test statistic. 
+Since we have 12 observations across four groups, computing the p-value requires computing test statistics for $12!$ permutations, which is infeasible. So, we compute our p-value using $10000$ randomly generated permutations. The figure below shows the distribution plot of the test statistic under the null hypothesis. Note that the test statistic is always positive, so our test is one-sided.
+
+```{python, echo=FALSE, out.width = "200px",out.width = "300px" }
+def F_statistic(y):
+  num = 3*y.groupby(level=0).mean().var()
+  denom = y.groupby(level=0).var().sum()/4
+  return num/denom
+
+def F_test(y):
+    F = F_statistic(y)
+    #permutations = random.choices(list(itertools.permutations(y.index)), k = 1000)
+    hist = []
+    initial = y.index
+    i = 0
+    for i in range(10000):
+      y.index = np.random.permutation(initial)
+      hist.append(F_statistic(y))
+      F_temp = F_statistic(y)
+      i+=1
+    return np.mean(hist >= F), hist
+
+df_fl.index = df_fl["treatment"]
+p_value, hist = F_test(df_fl["magnitude_diff"])
+sns.histplot(hist)
+plt.title("Distribution of F-statistic for change in magnitude")
+```
+
+
+We repeat the same F-statistic based permutation test for variable $\Delta G$ as well.
+
+```{python, echo=FALSE, out.width = "200px",out.width = "300px"}
+
+df_fl.index = df_fl["treatment"]
+p_value, hist = F_test(df_fl["green_diff"])
+sns.histplot(hist)
+plt.title("Distribution of F-statistic for change in green chanel value")
+```
+
+
+The summary of our tests for both of these variables is presented in the following table.
+
+| Variable    | F-Statistic |p-value      |
+| ----------- | ----------- |-------------|
+| $\Delta M$  | $5.62$      | $0.02$      |
+| $\Delta G$  | $4.84$      | $0.04$      |
+
+
+Since the p-value is $<0.05$ for both variables $\Delta M$ and $\Delta G$, our tests suggest that there is at least one pair of groups between which the treatment effect is significant. Next, we do permutation test on each pair of group separately using difference in means as our test statistic. 
+
+```{python, include=FALSE}
+def permutation_test(data_set, trt1, trt2,  variable):
+   data_slice = data_set.loc[data_set.treatment.isin([trt1, trt2])].copy()
+   diff_given = data_slice.loc[data_slice.treatment == trt1, variable].mean() - data_slice.loc[data_slice.treatment == trt2, variable].mean()
+  
+   differences = []
+   treatments = data_slice.loc[:, "treatment"].values
+   for perms in itertools.permutations(treatments):
+     data_slice.loc[:, "treatment"] = perms
+     differences.append(data_slice.loc[data_slice.treatment == trt1, variable].mean() - data_slice.loc[data_slice.treatment == trt2, variable].mean())
+   return differences, np.mean(differences >= diff_given)
+
+```
+
+
+For instance, the following plot shows the distribution of test statistics while comparing the control group to the treatment group 1 (apple) under the sharp null hypothesis. Since we obtain a p-value to be 0.7, we conclude that the treatment of apple does not have a statistically significant treatment effect.
+
+```{python, echo=FALSE, out.width = "200px",out.width = "300px"}
+differences, p_value = permutation_test(df_fl, 0, 1, "green_diff")
+print("p-value", p_value)
+sns.histplot(differences, bins = 30, kde= True)
+plt.title("p-value of test for control vs apple")
+```
+
+
+The p-value of all the tests, where each test compares a treatment group with either control or another treatment group,  is summarized in tables below.
+
+
+\begin{table}[H]
+\begin{tabular}{l|cccc}
+ & Control & Apple & Cucumber & Apple \& Cucumber \\
+ \hline
+Control & - & $0.2$ & $0.05$ & $0.1$ \\
+Apple & - & - & $0.05$ & $0.4$ \\
+Cucumber & - & - & - & $1.03$ \\
+Apple \& Cucumber & - & - & - & - \\
+\hline
+\end{tabular}
+\label{table:pvalues_deltaM}
+\caption{p-values for variable $\Delta M$}
+\end{table}
+
+
+\begin{table}[H]
+\begin{tabular}{l|cccc}
+ & Control & Apple & Cucumber & Apple \& Cucumber \\
+ \hline
+Control & - & $0.7$ & $0.05$ & $0.3$ \\
+Apple & - & - & $0.05$ & $0.1$ \\
+Cucumber & - & - & - & $0.9$ \\
+Apple \& Cucumber & - & - & - & - \\
+\hline
+\end{tabular}
+\label{table:pvalues_deltaG}
+\caption{p-values for variable $\Delta G$}
+\end{table}
+
+
+As we can see, the p-values of the cucumber treatment group, when compared against the control and apple group, have p-value $0.05$. However, we want to point out that our cucumber was rotten and the bananas got soaked in rotten cucumber juice. We believe that the low p-value was possible because soaked bananas looked darker compared to other bananas. Nevertheless, even with a $0.05$ p-value, after multiple testing adjustments, none of the treatments will be significant. Therefore, based on our analysis above, none of our treatments is significant. That is, we did not find any statistical evidence that any of these methods quickens the ripening process.
+
+
+# Permutation tests on consecutive days
+
+We are also interested in whether each of the treatments accelerates the ripening on each of the five days. We consider four combinations of permutation tests: (1) permutation test on RGB magnitude by difference-in-means; (2) permutation test on RGB magnitude by difference-in-medians; (3) permutation test on RGB green value by difference-in-means; (4) permutation test on RGB green value by difference-in-medians. The permutation is implemented on the treatments of 6 bananas, three of which is in the control group and the other three in a treatment group.  For each test, we have 3 p-values for 3 'treatment v.s. control' groups on each of the five days. The results are summarized in the following plots: 
+
+
+```{r echo=FALSE}
+#### read the data ####
+library(gtools)
+
+banana = read.csv('banana.csv')
+
+#### plot 1,2 ####
+#### new table for magnitude changes on each day ####
+
+mag_change = matrix(0, ncol = 5, nrow = 12)
+
+mag_change[,1] = banana$X10.20_magnitude - banana$X10.19_magnitude
+mag_change[,2] = banana$X10.21_magnitude - banana$X10.20_magnitude
+mag_change[,3] = banana$X10.22_magnitude - banana$X10.21_magnitude
+mag_change[,4] = banana$X10.23_magnitude - banana$X10.22_magnitude
+mag_change[,5] = banana$X10.24_magnitude - banana$X10.23_magnitude
+
+#### treatment information #### 
+
+tr_ctr = c(0,0,3,3,1,2,2,2,3,0,1,1)
+
+
+#### functions for permutation tests ####
+set.seed(2022)
+
+perm.test.mean = function(outcomes, treatments, nrep = 1000){
+  # permutation test with difference-in-means
+  n = length(outcomes)
+  control = which(treatments == 0)
+  treatments[setdiff(1:n, control)] = 1
+  
+  real_val = mean(outcomes[which(treatments == 1)]) - 
+    mean(outcomes[which(treatments == 0)])
+  all_perm = matrix(0, nrow = nrep, ncol = n)
+  for (i in 1:nrep) {
+    all_perm[i,] = permute(treatments)
+  }
+  
+  n_perm = dim(all_perm)[1]
+  diff_list = rep(0, n_perm)
+  
+  for (i in 1:n_perm) {
+    diff_list[i] = mean(outcomes[which(all_perm[i,] == 1)]) - 
+      mean(outcomes[which(all_perm[i,] == 0)])
+  }
+  
+  p.value = length(which( diff_list <= real_val)) / n_perm
+  return(p.value)
+}
+
+
+perm.test.median = function(outcomes, treatments, nrep = 1000){
+  # permutation test with difference-in-means
+  n = length(outcomes)
+  control = which(treatments == 0)
+  treatments[setdiff(1:n, control)] = 1
+  
+  real_val = median(outcomes[which(treatments == 1)]) - 
+    median(outcomes[which(treatments == 0)])
+  all_perm = matrix(0, nrow = nrep, ncol = n)
+  for (i in 1:nrep) {
+    all_perm[i,] = permute(treatments)
+  }
+  n_perm = dim(all_perm)[1]
+  diff_list = rep(0, n_perm)
+  
+  for (i in 1:n_perm) {
+    diff_list[i] = median(outcomes[which(all_perm[i,] == 1)]) - 
+      median(outcomes[which(all_perm[i,] == 0)])
+  }
+  
+  p.value = length(which( diff_list <= real_val)) / n_perm
+  return(p.value)
+}
+
+
+## tests for apple vs control ## 
+
+p.value.list1.mean = rep(0,5)
+p.value.list1.median = rep(0,5)
+tr01 = c(which(tr_ctr == 0), which(tr_ctr == 1))
+for (i in 1:5) {
+  p.value.list1.mean[i] = perm.test.mean(outcomes = mag_change[tr01, i], 
+                                         treatments = tr_ctr[tr01]) 
+  p.value.list1.median[i] = perm.test.median(outcomes = mag_change[tr01, i], 
+                                         treatments = tr_ctr[tr01]) 
+}
+
+
+## plot(p.value.list1.mean, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in mean test on apple treatment')
+## plot(p.value.list1.median, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in median test on apple treatment')
+
+## tests for cucumber vs control ## 
+
+p.value.list2.mean = rep(0,5)
+p.value.list2.median = rep(0,5)
+tr02 = c(which(tr_ctr == 0), which(tr_ctr == 2))
+for (i in 1:5) {
+  p.value.list2.mean[i] = perm.test.mean(outcomes = mag_change[tr02, i], 
+                                         treatments = tr_ctr[tr02]) 
+  p.value.list2.median[i] = perm.test.median(outcomes = mag_change[tr02, i], 
+                                             treatments = tr_ctr[tr02]) 
+}
+
+## plot(p.value.list2.mean, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in mean test on cucumber treatment')
+## plot(p.value.list2.median, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in median test on cucumber treatment')
+
+
+
+## tests for mixed vs control ## 
+
+p.value.list3.mean = rep(0,5)
+p.value.list3.median = rep(0,5)
+tr03 = c(which(tr_ctr == 0), which(tr_ctr == 3))
+for (i in 1:5) {
+  p.value.list3.mean[i] = perm.test.mean(outcomes = mag_change[tr03, i], 
+                                         treatments = tr_ctr[tr03]) 
+  p.value.list3.median[i] = perm.test.median(outcomes = mag_change[tr03, i], 
+                                             treatments = tr_ctr[tr03]) 
+}
+
+```
+
+```{r echo=FALSE, out.width = "200px",out.width = "300px"}
+## plot(p.value.list3.mean, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in mean test on mixed treatment')
+## plot(p.value.list3.median, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in median test on mixed treatment')
+
+plot(c(1,2,3,4,5), p.value.list1.mean, type='l', col = 'red', lty = 1, lwd = 3,
+     xlab = 'Day', ylab = 'p-value', main = 'Difference-in-means tests for magnitude',
+    ylim = c(0, 1), cex.lab = 1.4, cex.axis = 1.2)
+lines(c(1,2,3,4,5), p.value.list2.mean, type='l', col="blue", lty = 1, lwd =3)
+lines(c(1,2,3,4,5), p.value.list3.mean, type='l', col="black", lty = 1, lwd =3)
+legend(x=1.1, y = 0.1, legend = c('apple vs control'), lty = 1, col = c('red'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.17, legend = c('cucumber vs control'), lty = 1, col = c('blue'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.24, legend = c('mixed vs control'), lty = 1, col = c('black'),  bty="n",lwd =3,cex= 1.3)
+```
+
+```{r echo=FALSE, out.width = "200px",out.width = "300px"}
+
+plot(c(1,2,3,4,5), p.value.list1.median, type='l', col = 'red', lty = 1, lwd = 3,
+     xlab = 'Day', ylab = 'p-value', main = 'Difference-in-medians tests for magnitude',
+     ylim = c(0, 1), cex.lab = 1.4, cex.axis = 1.2)
+lines(c(1,2,3,4,5), p.value.list2.median, type='l', col="blue", lty = 1, lwd =3)
+lines(c(1,2,3,4,5), p.value.list3.median, type='l', col="black", lty = 1, lwd =3)
+legend(x=1.1, y = 0.1, legend = c('apple vs control'), lty = 1, col = c('red'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.17, legend = c('cucumber vs control'), lty = 1, col = c('blue'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.24, legend = c('mixed vs control'), lty = 1, col = c('black'),  bty="n",lwd =3,cex= 1.3)
+
+```
+
+```{r echo=FALSE, out.width = "200px",out.width = "300px"}
+#### plot 3,4 ####
+#### new table for magnitude changes on each day ####
+
+mag_change = matrix(0, ncol = 5, nrow = 12)
+
+mag_change[,1] = banana$X10.20_g - banana$X10.19_g
+mag_change[,2] = banana$X10.21_g - banana$X10.20_g
+mag_change[,3] = banana$X10.22_g - banana$X10.21_g
+mag_change[,4] = banana$X10.23_g - banana$X10.22_g
+mag_change[,5] = banana$X10.24_g - banana$X10.23_g
+
+#### treatment information #### 
+
+tr_ctr = c(0,0,3,3,1,2,2,2,3,0,1,1)
+
+
+#### functions for permutation tests ####
+set.seed(2022)
+
+
+## tests for apple vs control ## 
+
+p.value.list1.mean = rep(0,5)
+p.value.list1.median = rep(0,5)
+tr01 = c(which(tr_ctr == 0), which(tr_ctr == 1))
+for (i in 1:5) {
+  p.value.list1.mean[i] = perm.test.mean(outcomes = mag_change[tr01, i], 
+                                         treatments = tr_ctr[tr01]) 
+  p.value.list1.median[i] = perm.test.median(outcomes = mag_change[tr01, i], 
+                                             treatments = tr_ctr[tr01]) 
+}
+
+
+## plot(p.value.list1.mean, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in mean test on apple treatment')
+## plot(p.value.list1.median, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in median test on apple treatment')
+
+## tests for cucumber vs control ## 
+
+p.value.list2.mean = rep(0,5)
+p.value.list2.median = rep(0,5)
+tr02 = c(which(tr_ctr == 0), which(tr_ctr == 2))
+for (i in 1:5) {
+  p.value.list2.mean[i] = perm.test.mean(outcomes = mag_change[tr02, i], 
+                                         treatments = tr_ctr[tr02]) 
+  p.value.list2.median[i] = perm.test.median(outcomes = mag_change[tr02, i], 
+                                             treatments = tr_ctr[tr02]) 
+}
+
+## plot(p.value.list2.mean, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in mean test on cucumber treatment')
+## plot(p.value.list2.median, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in median test on cucumber treatment')
+
+
+
+## tests for mixed vs control ## 
+
+p.value.list3.mean = rep(0,5)
+p.value.list3.median = rep(0,5)
+tr03 = c(which(tr_ctr == 0), which(tr_ctr == 3))
+for (i in 1:5) {
+  p.value.list3.mean[i] = perm.test.mean(outcomes = mag_change[tr03, i], 
+                                         treatments = tr_ctr[tr03]) 
+  p.value.list3.median[i] = perm.test.median(outcomes = mag_change[tr03, i], 
+                                             treatments = tr_ctr[tr03]) 
+}
+
+
+## plot(p.value.list3.mean, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in mean test on mixed treatment')
+## plot(p.value.list3.median, type = 'l', xlab = 'Day', ylab = 'p values', main = 'Difference in median test on mixed treatment')
+
+plot(c(1,2,3,4,5), p.value.list1.mean, type='l', col = 'red', lty = 1, lwd = 3,
+     xlab = 'Day', ylab = 'p-value', main = 'Difference-in-means tests for g value',
+     ylim = c(0, 1), cex.lab = 1.4, cex.axis = 1.2)
+lines(c(1,2,3,4,5), p.value.list2.mean, type='l', col="blue", lty = 1, lwd =3)
+lines(c(1,2,3,4,5), p.value.list3.mean, type='l', col="black", lty = 1, lwd =3)
+legend(x=1.1, y = 0.1, legend = c('apple vs control'), lty = 1, col = c('red'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.17, legend = c('cucumber vs control'), lty = 1, col = c('blue'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.24, legend = c('mixed vs control'), lty = 1, col = c('black'),  bty="n",lwd =3,cex= 1.3)
+
+
+```
+
+```{r echo=FALSE, out.width = "200px",out.width = "300px"}
+
+plot(c(1,2,3,4,5), p.value.list1.median, type='l', col = 'red', lty = 1, lwd = 3,
+     xlab = 'Day', ylab = 'p-value', main = 'Difference-in-medians tests for g value',
+     ylim = c(0, 1), cex.lab = 1.4, cex.axis = 1.2)
+lines(c(1,2,3,4,5), p.value.list2.median, type='l', col="blue", lty = 1, lwd =3)
+lines(c(1,2,3,4,5), p.value.list3.median, type='l', col="black", lty = 1, lwd =3)
+legend(x=1.1, y = 0.1, legend = c('apple vs control'), lty = 1, col = c('red'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.17, legend = c('cucumber vs control'), lty = 1, col = c('blue'),  bty="n",lwd =3,cex= 1.3)
+legend(x=1.1, y = 0.24, legend = c('mixed vs control'), lty = 1, col = c('black'),  bty="n",lwd =3,cex= 1.3)
+
+
+```
+
+As shown in the figures, there is no significant ripening effect among the treatments on each day. 
+
+# Permutation tests on Repeated Measurements
+
+Given the unexpected incident on the 3rd treatment group at last two days, we would like to see over the course of experiments, if there is any positive treatment effect comparing one to the other, or there is any treatment effect among the 4 groups.
+
+We first compute the Lag 1 difference of the RGB magnitude and Green RGB value for each day, and observe that the first day measurement is much larger comparing to others. To be cautious of the outliers, we choose to work with median-based test statistics.
+
+To compare any two pairs of the groups, we subset the data and use difference in median. We conduct 1-sided permutation test by randomly permuting 10,000 times of treatment assignments (fixed for each of the days). By doing so, the subject variability stays constant for each of the permutation, but variability owing to design is captured.
+
+None of the tests are significant for RGB magnitude and Green RGB before multiplicity adjustment, where the group in row is the group we compared to for each of the column.
+
+
+\begin{table}[H]
+\begin{tabular}{l|cccc}
+ & Control & Apple & Cucumber & Apple \& Cucumber \\
+ \hline
+Control & - & $0.3924$ & $0.3521$ & $0.3504$ \\
+Apple & - & - & $0.4953$ & $0.7097$ \\
+Cucumber & - & - & - & $0.6973$ \\
+Apple \& Cucumber & - & - & - & - \\
+\hline
+\end{tabular}
+\caption{p-values for magnitude}
+\end{table}
+
+\begin{table}{H}
+\begin{tabular}{l|cccc}
+ & Control & Apple & Cucumber & Apple \& Cucumber \\
+ \hline
+Control & - & $0.1441$ & $0.2495$ & $0.2513$ \\
+Apple & - & - & $0.7499$ & $0.6548$ \\
+Cucumber & - & - & - & $0.4381$ \\
+Apple \& Cucumber & - & - & - & - \\
+\hline
+\end{tabular}
+\caption{p-values for green}
+\end{table}
+
+To test the presence of any treatment difference comparing each to the other, we use between-sample variability / within-sample variability of median as test statistics, where
+$$
+F_{m e d}=\frac{\frac{1}{4-1} \sum_{j=1}^4 3\left(\tilde{y}_j-\tilde{y}\right)^2}{\frac{1}{12-4} \sum_{j=1}^k \sum_{i=1}^3\left(y_{i j}-\tilde{y}_j\right)^2}.
+$$
+We randomly permute treatment assignment for 10,000 times (fixed across days). The p-value for RGB magnitude is $0.9188$ and o-value for Green RGB is $0.5844$. None of the test is significant. 
+
+It is important to note that the current analysis result is constraint by the small sample size of the experiment we ran. 
+
+```{python, include = FALSE}
+import jax.numpy as jnp
+import jax.random as jrm
+from jax import jit, vmap
+from jax.lax import fori_loop
+
+import numpy as np
+import pandas as pd
+from functools import partial
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+```
+
+```{python, include = FALSE}
+
+def _median(val, perm_trt, idx_trt, nsize):
+
+	out = jnp.zeros_like(idx_trt, dtype=jnp.float32)
+	for i in range(len(idx_trt)):
+		idx = jnp.argwhere(perm_trt == idx_trt[i], size=nsize) # 3 bananas for 5 days
+		out = out.at[i].set(jnp.median(val.at[idx].get()))
+	return out
+
+
+```
+
+```{python, include = FALSE}
+
+# if variance is mostly explained by between treatment variance
+# then F statistics is large, which corresponds to p-val=P(F>=obs)
+def var_median(val, perm_trt, idx_trt, nsize):
+  global_med = jnp.median(val)
+  local_med = _median(val, perm_trt, idx_trt, nsize)
+  num = jnp.sum((local_med - global_med)**2) * nsize / (len(idx_trt)-1)
+  den = 0.
+  for i in range(len(idx_trt)):
+    idx = jnp.argwhere(perm_trt == idx_trt[i], size=nsize)
+    sqrt = (val.at[idx].get() - local_med.at[i].get())**2
+    den += jnp.sum(sqrt)
+  F = num / den * (len(val) - len(idx_trt))
+  return F
+
+
+```
+
+```{python, include = FALSE}
+def _perm(key, trt, idx_trt, val, stats, days=5):
+  rep_trt = jnp.repeat(trt[:,jnp.newaxis], repeats=days, axis=1) 
+  perm_trt = jrm.permutation(key, rep_trt, axis=0, independent=False).ravel("F")
+  if stats == "var_median":
+    perm_stats = var_median(val, perm_trt, idx_trt, 3*days)
+  elif stats == "max_median":
+    perm_stats = jnp.max(jnp.abs(_median(val, perm_trt, idx_trt, 3*days)))
+  elif stats == "mean_median":
+    perm_stats = jnp.mean(jnp.abs(_median(val, perm_trt, idx_trt, 3*days)))
+  elif stats == "diff_median":
+    med =  _median(val, perm_trt, idx_trt, 3*days)
+    perm_stats = med[1] - med[0]
+  else:
+    raise NotImplementedError
+  return perm_stats
+```
+
+```{python, include = FALSE}
+
+def perm(key, m, trt, idx_trt, val, stats, days=5):
+  keys = jrm.split(key, m)
+  ite_perm = jit(vmap(partial(_perm, trt=trt, idx_trt=idx_trt, val=val, stats=stats, days=days), (0)))
+  stats_perm = ite_perm(keys)
+  return stats_perm
+
+```
+
+```{python, echo = FALSE, out.width = "200px",out.width = "300px"}
+
+""" We use normalised (divide by magnitude) green RGB value for each of the data point, then we take 1 lag difference
+to remove linear trend in time.
+Then we test for if there is a difference in any treatment comparing to each other with a modified F-statistics 
+based on between group / withiin group variance of median.
+We use a permutation test, where we treat each day as a block, and permute within each of the block, after which we 
+compute the test statistics using all the data.
+Alternatively, we can compute an average over the 5 days for each of the treatment, however, as seen in HW3, we may
+fail to control type 1 error.
+After finding the test statistics distrbution under the null hypothesis, we can find the p-value P(F >= obs).
+"""
+
+banana = pd.read_csv("banana.csv")
+data = pd.read_csv("data.csv")
+
+# combine green and magnitude respectively
+col_names = banana.columns.values
+g_col = pd.Series(col_names).str.contains('_g').tolist()
+mag_col = pd.Series(col_names).str.contains('_mag').tolist()
+
+# normalise the green with magnitude
+g_banana = banana.loc[:, g_col]
+mag_banana = banana.loc[:, mag_col]
+# gnorm_banana = pd.DataFrame(g_banana.values/mag_banana.values, columns=col_names[g_col])
+gnorm_banana = g_banana
+# gnorm_banana = mag_banana
+gnorm_diff_banana = gnorm_banana.diff(periods=1, axis=1) # remove trend
+soft_diff = data.iloc[:,2:4].diff(periods=1, axis=1)
+
+# combine with banana information and normalised green
+g_df = pd.concat([data.iloc[:,:2], gnorm_diff_banana.iloc[:,1:]], axis =1)
+soft_df = pd.concat([data.iloc[:,:2], soft_diff.iloc[:,1:]], axis =1)
+g_df_melted = pd.melt(g_df, id_vars=["number", "treatment"], var_name="covariates", value_name="value")
+
+# # save the entirety of df
+df = pd.concat([data.iloc[:,:2], soft_diff.iloc[:,1:], gnorm_diff_banana.iloc[:,1:]], axis=1)
+df_melted = pd.melt(df, id_vars=["number", "treatment"], var_name="covariates", value_name="value")
+# print(df_melted)
+df_melted.to_csv("mag_df_melted.csv")
+g_df_melted.to_csv("g_df_melted.csv")
+
+########################## Stats based on Median 5 days ############################
+
+g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=72
+obs_trt = g_df["treatment"].values # vector 12
+idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
+n_trt = len(idx_trt)
+#print(g_df_melted)
+#print("gval", g_val)
+m = 10000
+key = jrm.PRNGKey(130)
+stats = "var_median"
+days = 5
+perm_stats = perm(key, m, obs_trt, idx_trt, g_val, stats, days=days)
+# print(g_df_melted["treatment"].values)
+# print(_perm(key, obs_trt, idx_trt, g_val, stats))
+if stats == "var_median":
+  obs_stats = var_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)
+  title = "Consecutive Change in RGB Magnitude"
+elif stats == "max_median":
+  obs_stats = jnp.max(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
+  title = "Max of Absolute Medians"
+elif stats == "mean_median":
+  obs_stats = jnp.mean(jnp.abs(_median(g_val, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
+  title = "Mean of Absolute Medians"
+else:
+  raise NotImplementedError
+
+print("obs stats {}".format(stats), obs_stats)
+
+pval = jnp.mean(perm_stats >= obs_stats)
+
+plt.figure(figsize=(12, 7))
+sns.histplot(np.asarray(perm_stats), kde=True)
+plt.axvline(obs_stats, color="r", label="observed")
+plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
+plt.title(title)
+plt.show()
+plt.close()
+# plt.savefig("./figs/5_mag_{}.png".format(stats))
+
+############################# mean across days #####################################
+
+# g_val_mean = jnp.asarray(g_df.iloc[:,2:].values).mean(axis=1)
+# obs_trt = g_df["treatment"].values
+# idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
+# n_trt = len(idx_trt)
+# print(obs_trt)
+# print(g_val_mean)
+
+# m = 10000
+# key = jrm.PRNGKey(130)
+# stats = "var_median"
+# days = 1
+# perm_stats = perm(key, m, obs_trt, idx_trt, g_val_mean, stats, days=days)
+# # print(g_df_melted["treatment"].values)
+# # print(_perm(key, obs_trt, idx_trt, g_val, stats))
+
+# if stats == "var_median":
+# 	obs_stats = var_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*1)
+# 	title = "Variance of Between Treatment Medians/Within Treatment Medians"
+# elif stats == "max_median":
+# 	obs_stats = jnp.max(jnp.abs(_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
+# 	title = "Max of Absolute Medians"
+# elif stats == "mean_median":
+# 	obs_stats = jnp.mean(jnp.abs(_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
+# 	title = "Mean of Absolute Medians"
+# else:
+# 	raise NotImplementedError
+
+# pval = jnp.mean(perm_stats >= obs_stats)
+
+# plt.figure(figsize=(12, 7))
+# sns.histplot(np.asarray(perm_stats), kde=True)
+# plt.axvline(obs_stats, color="r", label="observed")
+# plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
+# plt.title(title)
+# plt.savefig("./figs/1_mag_{}.png".format(stats))
+
+
+############################ difference of median compare to control #######################
+
+g_val = jnp.asarray(g_df_melted["value"].values) # vector 12*5=60
+obs_trt = jnp.asarray(g_df_melted["treatment"].values) # vector 12*5=60
+m = 10000
+key = jrm.PRNGKey(130)
+stats = "diff_median"
+days = 5
+
+p_val = []
+
+# control vs. apple, cucumber, cucumber + apple
+for i in [1,2,3]:
+  g_val_2 = g_val[(obs_trt==0) + (obs_trt==i)]
+  obs_trt_2 = obs_trt[(obs_trt==0) + (obs_trt==i)]
+  idx_trt_2 = jnp.array([0,i])
+
+  perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
+  med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
+  obs_stats = med[1] - med[0]
+
+  p_val.append(jnp.mean(obs_stats >= perm_stats))
+
+
+# apple vs. cucumber, cucumber + apple
+for i in [0,2,3]:
+  g_val_2 = g_val[(obs_trt==1) + (obs_trt==i)]
+  obs_trt_2 = obs_trt[(obs_trt==1) + (obs_trt==i)]
+  idx_trt_2 = jnp.array([1,i])
+
+  perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
+  med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
+  obs_stats = med[1] - med[0]
+
+  p_val.append(jnp.mean(obs_stats >= perm_stats))
+
+
+for i in [0,1,3]:
+  g_val_2 = g_val[(obs_trt==2) + (obs_trt==i)]
+  obs_trt_2 = obs_trt[(obs_trt==2) + (obs_trt==i)]
+  idx_trt_2 = jnp.array([2,i])
+
+  perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
+  med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
+  obs_stats = med[1] - med[0]
+
+  p_val.append(jnp.mean(obs_stats >= perm_stats))
+
+for i in [0,1,2]:
+  g_val_2 = g_val[(obs_trt==3) + (obs_trt==i)]
+  obs_trt_2 = obs_trt[(obs_trt==3) + (obs_trt==i)]
+  idx_trt_2 = jnp.array([3,i])
+
+  perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
+  med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
+  obs_stats = med[1] - med[0]
+
+  p_val.append(jnp.mean(obs_stats >= perm_stats))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
+library(ggplot2)
+library(tibble)
+library(tidyr)
+
+
+g_df_melted = read.csv("g_df_melted.csv")
+mag_df_melted = read.csv("mag_df_melted.csv")
+g_df_melted$number = as.factor(g_df_melted$number)
+mag_df_melted$number = as.factor(mag_df_melted$number)
+g_df_melted$covariates = as.numeric(as.factor(g_df_melted$covariates))
+mag_df_melted$covariates = as.numeric(as.factor(mag_df_melted$covariates))
+
+ggplot(g_df_melted, aes(x=covariates, y=value, color=number)) +
+    facet_wrap(~factor(treatment), ncol=4) +
+    geom_point(alpha=0.7) + 
+    # geom_smooth(se=FALSE, method=loess) +
+    geom_line() +
+    labs(x = "Time point", y = "Lag 1 Difference of Measurements") +
+    ggtitle("Green RGB Value") +
+    theme_classic() 
+
+
+
+```
+
+```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
+ggplot(mag_df_melted, aes(x=covariates, y=value, color=number)) +
+    facet_wrap(~treatment, ncol=4) +
+    geom_point(alpha=0.7) + 
+    geom_line() +
+    labs(x = "Time point", y = "Lag 1 Difference of Measurements") +
+    ggtitle("RGB Magnitude Value") +
+    theme_classic() 
+
+
+```
+
+```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
+ggplot(g_df_melted) +
+    geom_histogram(aes(x=value, color=factor(covariates), fill=factor(covariates)), alpha=0.5, position="dodge") +
+    labs(x = "Lag 1 Difference of Green RGB") +
+    ggtitle("Histogram for each Day of Measurements") +
+    labs(colour = "Day", fill="Day") +
+    theme_classic() 
+
+
+```
+
+```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
+ggplot(mag_df_melted) +
+    geom_histogram(aes(x=value, color=factor(covariates), fill=factor(covariates)), alpha=0.5, position="dodge") +
+    labs(x = "Lag 1 Difference of RGB Magnitude") +
+    ggtitle("Histogram for each Day of Measurements") +
+    labs(colour = "Day", fill="Day") +
+    theme_classic() 
+```
+
+# Conclusion 
+
+
+
+
