@@ -223,6 +223,11 @@ if __name__ == "__main__":
 		med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
 		obs_stats = med[1] - med[0]
 
+		sns.histplot(perm_stats)
+		plt.axvline(obs_stats, color="r", label="observed")
+		plt.show()
+		plt.close()
+
 		p_val.append(jnp.mean(obs_stats >= perm_stats))
 
 
@@ -236,30 +241,35 @@ if __name__ == "__main__":
 		med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
 		obs_stats = med[1] - med[0]
 
-		p_val.append(jnp.mean(obs_stats >= perm_stats))
-
-
-	for i in [0,1,3]:
-		g_val_2 = g_val[(obs_trt==2) + (obs_trt==i)]
-		obs_trt_2 = obs_trt[(obs_trt==2) + (obs_trt==i)]
-		idx_trt_2 = jnp.array([2,i])
-
-		perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
-		med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
-		obs_stats = med[1] - med[0]
+		sns.histplot(perm_stats)
+		plt.axvline(obs_stats, color="r", label="observed")
+		plt.show()
+		plt.close()
 
 		p_val.append(jnp.mean(obs_stats >= perm_stats))
 
-	for i in [0,1,2]:
-		g_val_2 = g_val[(obs_trt==3) + (obs_trt==i)]
-		obs_trt_2 = obs_trt[(obs_trt==3) + (obs_trt==i)]
-		idx_trt_2 = jnp.array([3,i])
 
-		perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
-		med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
-		obs_stats = med[1] - med[0]
+	# for i in [0,1,3]:
+	# 	g_val_2 = g_val[(obs_trt==2) + (obs_trt==i)]
+	# 	obs_trt_2 = obs_trt[(obs_trt==2) + (obs_trt==i)]
+	# 	idx_trt_2 = jnp.array([2,i])
 
-		p_val.append(jnp.mean(obs_stats >= perm_stats))
+	# 	perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
+	# 	med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
+	# 	obs_stats = med[1] - med[0]
+
+	# 	p_val.append(jnp.mean(obs_stats >= perm_stats))
+
+	# for i in [0,1,2]:
+	# 	g_val_2 = g_val[(obs_trt==3) + (obs_trt==i)]
+	# 	obs_trt_2 = obs_trt[(obs_trt==3) + (obs_trt==i)]
+	# 	idx_trt_2 = jnp.array([3,i])
+
+	# 	perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
+	# 	med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
+	# 	obs_stats = med[1] - med[0]
+
+	# 	p_val.append(jnp.mean(obs_stats >= perm_stats))
 
 
 

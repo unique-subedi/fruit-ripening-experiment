@@ -7,20 +7,20 @@ output:
     includes:
       in_header: header.tex
     keep_tex: yes
+    toc: true
 fontsize: 12pt
 geometry: margin=1in
 graphics: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
 library(reticulate)
-#py_install("sicpy")
-#py_install("seaborn")
-#py_install("matplotlib")
-#py_install("jax")
+py_install("sicpy")
+py_install("seaborn")
+py_install("matplotlib")
+py_install("jax")
 ```
-
 
 
 ```{python, include=FALSE}
@@ -66,9 +66,7 @@ knitr::include_graphics(c("original.jpg","processed.png" ))
 
 
 
-
-
-## Analysis on Softness
+# Analysis on Softness
 
 
 
@@ -164,14 +162,16 @@ The test statistic we use is the F-statistic, which is given by
 $$F: = \frac{\textit{between group variability}}{\textit{within group variability}}$$
 
  
+# Peel Color Analysis
 
-
-# Permutation tests on relative change between first and the last day
+## Permutation tests on relative change between first and the last day
 
 Let us define $M_{ij}$ to be the magnitude of pixel for $i^{th}$ banana on $j^{th}$ day of the experiment. Since we ran the experiment for 5 days, we have $j \in \{1, 2, 3,4, 5\}$. In this section, we study the variable 
 $$\Delta M_i :=  M_{i1} - M_{i5},$$
 that is the change in pixel magnitude between the first and the last day of the experiment for each banana. Similarly, let us denote $G_{ij}$ to be the average green channel value for $i^{th}$ banana on $j^{th}$ day of the experiment. Then, we can define
 $$\Delta G_i := G_{i1} - G_{i5}.$$
+
+
 ```{python, echo=FALSE}
 df = pd.concat([data, banana.iloc[:,1:]], axis =1)
 df_fl = df.loc[:, ['number', 'treatment', '10-19_g', '10-19_magnitude', '10-24_g', '10-24_magnitude']]
@@ -257,7 +257,7 @@ plt.title("p-value of test for control vs apple")
 The p-value of all the tests, where each test compares a treatment group with either control or another treatment group,  is summarized in tables below.
 
 
-\begin{table}[H]
+\begin{table}
 \begin{tabular}{l|cccc}
  & Control & Apple & Cucumber & Apple \& Cucumber \\
  \hline
@@ -272,7 +272,7 @@ Apple \& Cucumber & - & - & - & - \\
 \end{table}
 
 
-\begin{table}[H]
+\begin{table}
 \begin{tabular}{l|cccc}
  & Control & Apple & Cucumber & Apple \& Cucumber \\
  \hline
@@ -290,7 +290,7 @@ Apple \& Cucumber & - & - & - & - \\
 As we can see, the p-values of the cucumber treatment group, when compared against the control and apple group, have p-value $0.05$. However, we want to point out that our cucumber was rotten and the bananas got soaked in rotten cucumber juice. We believe that the low p-value was possible because soaked bananas looked darker compared to other bananas. Nevertheless, even with a $0.05$ p-value, after multiple testing adjustments, none of the treatments will be significant. Therefore, based on our analysis above, none of our treatments is significant. That is, we did not find any statistical evidence that any of these methods quickens the ripening process.
 
 
-# Permutation tests on consecutive days
+## Permutation tests on consecutive days
 
 We are also interested in whether each of the treatments accelerates the ripening on each of the five days. We consider four combinations of permutation tests: (1) permutation test on RGB magnitude by difference-in-means; (2) permutation test on RGB magnitude by difference-in-medians; (3) permutation test on RGB green value by difference-in-means; (4) permutation test on RGB green value by difference-in-medians. The permutation is implemented on the treatments of 6 bananas, three of which is in the control group and the other three in a treatment group.  For each test, we have 3 p-values for 3 'treatment v.s. control' groups on each of the five days. The results are summarized in the following plots: 
 
@@ -543,15 +543,68 @@ legend(x=1.1, y = 0.24, legend = c('mixed vs control'), lty = 1, col = c('black'
 
 As shown in the figures, there is no significant ripening effect among the treatments on each day. 
 
-# Permutation tests on Repeated Measurements
+## Permutation tests on Repeated Measurements
+
+```{r g_lineplot, fig.caption="Lag 1 difference of green RGB value", echo = FALSE, out.width = "200px",out.width = "300px"}
+library(ggplot2)
+library(tibble)
+library(tidyr)
+
+g_df_melted = read.csv("g_df_melted.csv")
+mag_df_melted = read.csv("mag_df_melted.csv")
+g_df_melted$number = as.factor(g_df_melted$number)
+mag_df_melted$number = as.factor(mag_df_melted$number)
+g_df_melted$covariates = as.numeric(as.factor(g_df_melted$covariates))
+mag_df_melted$covariates = as.numeric(as.factor(mag_df_melted$covariates))
+
+ggplot(g_df_melted, aes(x=covariates, y=value, color=number)) +
+    facet_wrap(~factor(treatment), ncol=4) +
+    geom_point(alpha=0.7) + 
+    # geom_smooth(se=FALSE, method=loess) +
+    geom_line() +
+    labs(x = "Time point", y = "Lag 1 Difference of Measurements") +
+    ggtitle("Green RGB Value") +
+    theme_classic() 
+```
+
+```{r mag_lineplot, fig.caption="Lag 1 difference of RGB magnitude value", echo = FALSE, out.width = "200px",out.width = "300px"}
+ggplot(mag_df_melted, aes(x=covariates, y=value, color=number)) +
+    facet_wrap(~treatment, ncol=4) +
+    geom_point(alpha=0.7) + 
+    geom_line() +
+    labs(x = "Time point", y = "Lag 1 Difference of Measurements") +
+    ggtitle("RGB Magnitude Value") +
+    theme_classic() 
+```
 
 Given the unexpected incident on the 3rd treatment group at last two days, we would like to see over the course of experiments, if there is any positive treatment effect comparing one to the other, or there is any treatment effect among the 4 groups.
 
-We first compute the Lag 1 difference of the RGB magnitude and Green RGB value for each day, and observe that the first day measurement is much larger comparing to others. To be cautious of the outliers, we choose to work with median-based test statistics.
+We first compute the Lag 1 difference of the RGB magnitude $\Delta M_{i,j}=M_{i,j}-M_{i,j-1}$ and Green RGB value $\Delta G_{i,j}=G_{i,j}-G_{i,j-1}$ for $j=2,\dots,6$.
+In Figure \@ref(g_lineplot) and \@ref(mag_lineplot), it is notable that $\Delta M_{ij}$ and $\Delta G_{ij}$ follows similar patterns, with noticeable small negative values for the first day increment, which is owing to photo measurement discrepancy. To be cautious of the outliers, we choose to work with median-based test statistics. We are interested in if there is increase of treatment compared to the control
 
-To compare any two pairs of the groups, we subset the data and use difference in median. We conduct 1-sided permutation test by randomly permuting 10,000 times of treatment assignments (fixed for each of the days). By doing so, the subject variability stays constant for each of the permutation, but variability owing to design is captured.
+<!-- # ```{r g_hist, fig.caption="Histogram of Lag 1 difference of green RGB value", echo = FALSE, out.width = "200px",out.width = "300px"} -->
+<!-- # ggplot(g_df_melted) + -->
+<!-- #     geom_histogram(aes(x=value, color=factor(covariates), fill=factor(covariates)), alpha=0.5, position="dodge") + -->
+<!-- #     labs(x = "Lag 1 Difference of Green RGB") + -->
+<!-- #     ggtitle("Histogram for each Day of Measurements") + -->
+<!-- #     labs(colour = "Day", fill="Day") + -->
+<!-- #     theme_classic()  -->
+<!-- #  -->
+<!-- #  -->
+<!-- # ``` -->
 
-None of the tests are significant for RGB magnitude and Green RGB before multiplicity adjustment, where the group in row is the group we compared to for each of the column.
+<!-- # ```{r mag_hist, fig.caption="Histogram of Lag 1 difference of RGB magnitude value", echo = FALSE, out.width = "200px",out.width = "300px"} -->
+<!-- # ggplot(mag_df_melted) + -->
+<!-- #     geom_histogram(aes(x=value, color=factor(covariates), fill=factor(covariates)), alpha=0.5, position="dodge") + -->
+<!-- #     labs(x = "Lag 1 Difference of RGB Magnitude") + -->
+<!-- #     ggtitle("Histogram for each Day of Measurements") + -->
+<!-- #     labs(colour = "Day", fill="Day") + -->
+<!-- #     theme_classic()  -->
+<!-- # ``` -->
+
+(1) To compare any two pairs of the groups, we subset the data and use difference in median. We conduct 1-sided permutation test by randomly permuting 10,000 times of treatment assignments (fixed for each of the days). By doing so, the subject variability stays constant for each of the permutation, but variability owing to design is captured.
+
+None of the tests are significant for RGB magnitude and Green RGB before multiplicity adjustment, where the group in row is the group we compared to for each of the column. However, we would expect the green RGB value compared to the previous day to be negative and decreasing as banana ripens, however it is not the case in our measurement. This noise could be attributed to data collection inconsistency, and could potentially explain the large p-values.
 
 
 \begin{table}[H]
@@ -580,13 +633,11 @@ Apple \& Cucumber & - & - & - & - \\
 \caption{p-values for green}
 \end{table}
 
-To test the presence of any treatment difference comparing each to the other, we use between-sample variability / within-sample variability of median as test statistics, where
+(2) To test the presence of any treatment difference comparing each to the other, we use between-sample variability / within-sample variability of median as test statistics, where
 $$
 F_{m e d}=\frac{\frac{1}{4-1} \sum_{j=1}^4 3\left(\tilde{y}_j-\tilde{y}\right)^2}{\frac{1}{12-4} \sum_{j=1}^k \sum_{i=1}^3\left(y_{i j}-\tilde{y}_j\right)^2}.
 $$
-We randomly permute treatment assignment for 10,000 times (fixed across days). The p-value for RGB magnitude is $0.9188$ and o-value for Green RGB is $0.5844$. None of the test is significant. 
-
-It is important to note that the current analysis result is constraint by the small sample size of the experiment we ran. 
+We randomly permute treatment assignment for 10,000 times (fixed across days). The p-value for RGB magnitude is $0.9188$ and p-value for Green RGB is $0.5844$. In this setup, non of the test is significant.
 
 ```{python, include = FALSE}
 import jax.numpy as jnp
@@ -612,12 +663,9 @@ def _median(val, perm_trt, idx_trt, nsize):
 		idx = jnp.argwhere(perm_trt == idx_trt[i], size=nsize) # 3 bananas for 5 days
 		out = out.at[i].set(jnp.median(val.at[idx].get()))
 	return out
-
-
 ```
 
 ```{python, include = FALSE}
-
 # if variance is mostly explained by between treatment variance
 # then F statistics is large, which corresponds to p-val=P(F>=obs)
 def var_median(val, perm_trt, idx_trt, nsize):
@@ -631,8 +679,6 @@ def var_median(val, perm_trt, idx_trt, nsize):
     den += jnp.sum(sqrt)
   F = num / den * (len(val) - len(idx_trt))
   return F
-
-
 ```
 
 ```{python, include = FALSE}
@@ -736,53 +782,13 @@ print("obs stats {}".format(stats), obs_stats)
 
 pval = jnp.mean(perm_stats >= obs_stats)
 
-plt.figure(figsize=(12, 7))
-sns.histplot(np.asarray(perm_stats), kde=True)
-plt.axvline(obs_stats, color="r", label="observed")
-plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
-plt.title(title)
-plt.show()
-plt.close()
-# plt.savefig("./figs/5_mag_{}.png".format(stats))
-
-############################# mean across days #####################################
-
-# g_val_mean = jnp.asarray(g_df.iloc[:,2:].values).mean(axis=1)
-# obs_trt = g_df["treatment"].values
-# idx_trt = jnp.unique(obs_trt).astype(jnp.int32)
-# n_trt = len(idx_trt)
-# print(obs_trt)
-# print(g_val_mean)
-
-# m = 10000
-# key = jrm.PRNGKey(130)
-# stats = "var_median"
-# days = 1
-# perm_stats = perm(key, m, obs_trt, idx_trt, g_val_mean, stats, days=days)
-# # print(g_df_melted["treatment"].values)
-# # print(_perm(key, obs_trt, idx_trt, g_val, stats))
-
-# if stats == "var_median":
-# 	obs_stats = var_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*1)
-# 	title = "Variance of Between Treatment Medians/Within Treatment Medians"
-# elif stats == "max_median":
-# 	obs_stats = jnp.max(jnp.abs(_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
-# 	title = "Max of Absolute Medians"
-# elif stats == "mean_median":
-# 	obs_stats = jnp.mean(jnp.abs(_median(g_val_mean, g_df_melted["treatment"].values, idx_trt, nsize=3*days)))
-# 	title = "Mean of Absolute Medians"
-# else:
-# 	raise NotImplementedError
-
-# pval = jnp.mean(perm_stats >= obs_stats)
-
 # plt.figure(figsize=(12, 7))
 # sns.histplot(np.asarray(perm_stats), kde=True)
 # plt.axvline(obs_stats, color="r", label="observed")
 # plt.xlabel("Test Stats under Sharp Null (p value = {})".format(pval))
 # plt.title(title)
-# plt.savefig("./figs/1_mag_{}.png".format(stats))
-
+# plt.show()
+# plt.close()
 
 ############################ difference of median compare to control #######################
 
@@ -809,7 +815,7 @@ for i in [1,2,3]:
 
 
 # apple vs. cucumber, cucumber + apple
-for i in [0,2,3]:
+for i in [2,3]:
   g_val_2 = g_val[(obs_trt==1) + (obs_trt==i)]
   obs_trt_2 = obs_trt[(obs_trt==1) + (obs_trt==i)]
   idx_trt_2 = jnp.array([1,i])
@@ -821,7 +827,7 @@ for i in [0,2,3]:
   p_val.append(jnp.mean(obs_stats >= perm_stats))
 
 
-for i in [0,1,3]:
+for i in [3]:
   g_val_2 = g_val[(obs_trt==2) + (obs_trt==i)]
   obs_trt_2 = obs_trt[(obs_trt==2) + (obs_trt==i)]
   idx_trt_2 = jnp.array([2,i])
@@ -831,94 +837,13 @@ for i in [0,1,3]:
   obs_stats = med[1] - med[0]
 
   p_val.append(jnp.mean(obs_stats >= perm_stats))
-
-for i in [0,1,2]:
-  g_val_2 = g_val[(obs_trt==3) + (obs_trt==i)]
-  obs_trt_2 = obs_trt[(obs_trt==3) + (obs_trt==i)]
-  idx_trt_2 = jnp.array([3,i])
-
-  perm_stats = perm(key, m, obs_trt_2[:6], idx_trt_2, g_val_2, stats, days=days)
-  med = _median(g_val_2, obs_trt_2, idx_trt_2, nsize=3*days)
-  obs_stats = med[1] - med[0]
-
-  p_val.append(jnp.mean(obs_stats >= perm_stats))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ```
 
 
-```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
-library(ggplot2)
-library(tibble)
-library(tidyr)
 
-
-g_df_melted = read.csv("g_df_melted.csv")
-mag_df_melted = read.csv("mag_df_melted.csv")
-g_df_melted$number = as.factor(g_df_melted$number)
-mag_df_melted$number = as.factor(mag_df_melted$number)
-g_df_melted$covariates = as.numeric(as.factor(g_df_melted$covariates))
-mag_df_melted$covariates = as.numeric(as.factor(mag_df_melted$covariates))
-
-ggplot(g_df_melted, aes(x=covariates, y=value, color=number)) +
-    facet_wrap(~factor(treatment), ncol=4) +
-    geom_point(alpha=0.7) + 
-    # geom_smooth(se=FALSE, method=loess) +
-    geom_line() +
-    labs(x = "Time point", y = "Lag 1 Difference of Measurements") +
-    ggtitle("Green RGB Value") +
-    theme_classic() 
-
-
-
-```
-
-```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
-ggplot(mag_df_melted, aes(x=covariates, y=value, color=number)) +
-    facet_wrap(~treatment, ncol=4) +
-    geom_point(alpha=0.7) + 
-    geom_line() +
-    labs(x = "Time point", y = "Lag 1 Difference of Measurements") +
-    ggtitle("RGB Magnitude Value") +
-    theme_classic() 
-
-
-```
-
-```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
-ggplot(g_df_melted) +
-    geom_histogram(aes(x=value, color=factor(covariates), fill=factor(covariates)), alpha=0.5, position="dodge") +
-    labs(x = "Lag 1 Difference of Green RGB") +
-    ggtitle("Histogram for each Day of Measurements") +
-    labs(colour = "Day", fill="Day") +
-    theme_classic() 
-
-
-```
-
-```{r, echo = FALSE, out.width = "200px",out.width = "300px"}
-ggplot(mag_df_melted) +
-    geom_histogram(aes(x=value, color=factor(covariates), fill=factor(covariates)), alpha=0.5, position="dodge") +
-    labs(x = "Lag 1 Difference of RGB Magnitude") +
-    ggtitle("Histogram for each Day of Measurements") +
-    labs(colour = "Day", fill="Day") +
-    theme_classic() 
-```
 
 # Conclusion 
 
-
+In Figure \@ref(g_lineplot) and \@ref(mag_lineplot), we would expect the green RGB value compared to the previous day to be negative and decreasing as bana ripens, however it is not the case in our measurement.Especially, there is a questionable drop at $\Delta M_{i4}, \Delta G_{i4}$ compared to its adjacent measurement. The data issue could be a problem when interpreting the p-value as presented in peel color analysis section.
 
 
